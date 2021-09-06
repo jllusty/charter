@@ -1,0 +1,118 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "forest.tmx",
+    "expandedProjectPaths": [
+    ],
+    "file.lastUsedOpenFilter": "All Files (*)",
+    "fileStates": {
+        "": {
+            "scaleInDock": 1
+        },
+        "EMBARKv2.tsx": {
+            "scaleInDock": 1
+        },
+        "JLexample.tmx": {
+            "scale": 2,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 255.25,
+                "y": 159.75
+            }
+        },
+        "embark.tmx": {
+            "scale": 1.6229166666666666,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 256.63671373555843,
+                "y": 160.5134788189987
+            }
+        },
+        "embark.tmx#forest": {
+            "scaleInDock": 1
+        },
+        "embark.tmx#hero": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "embark.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 3
+        },
+        "enemy.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "forest.tmx": {
+            "scale": 2.1734848484848484,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 256.04043220634367,
+                "y": 114.79261066573721
+            }
+        },
+        "forest.tmx#enemy": {
+            "scaleInEditor": 1
+        },
+        "forest.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 5.5
+        },
+        "hero.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 5.5
+        },
+        "test.tmx": {
+            "scale": 8,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 39.9375,
+                "y": 48.1875
+            }
+        },
+        "untitled.tmx": {
+            "scale": 8.569791666666667,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 40.08265467363559,
+                "y": 48.01750334265223
+            }
+        }
+    },
+    "last.exportedFilePath": "C:/Users/jllus/Desktop/Embark/cpp/resources",
+    "last.externalTilesetPath": "C:/Users/jllus/Desktop/Embark/cpp/resources",
+    "last.imagePath": "C:/Users/jllus/Desktop/Embark/cpp/resources",
+    "lastUsedTilesetExportFilter": "JSON tileset files (*.json)",
+    "map.height": 20,
+    "map.lastUsedExportFilter": "JSON map files (*.json)",
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "map.width": 32,
+    "openFiles": [
+        "forest.tmx",
+        "forest.tsx",
+        "hero.tsx"
+    ],
+    "project": "",
+    "property.type": "float",
+    "recentFiles": [
+        "hero.tsx",
+        "forest.tsx",
+        "forest.tmx",
+        "enemy.tsx",
+        "embark.tmx",
+        "JLexample.tmx",
+        "embark.tsx",
+        "untitled.tmx",
+        "test.tmx"
+    ],
+    "tileset.embedInMap": false,
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.tileSize": {
+        "height": 32,
+        "width": 16
+    }
+}

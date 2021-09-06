@@ -1,0 +1,25 @@
+{ "columns":16,
+ "image":"tileset.png",
+ "imageheight":16,
+ "imagewidth":256,
+ "margin":0,
+ "name":"embark001",
+ "objectalignment":"topleft",
+ "spacing":0,
+ "tilecount":16,
+ "tiledversion":"1.7.2",
+ "tileheight":16,
+ "tiles":[
+        {
+         "id":4,
+         "properties":[
+                {
+                 "name":"traversable",
+                 "type":"bool",
+                 "value":false
+                }]
+        }],
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.6"
+}
