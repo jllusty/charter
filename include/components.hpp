@@ -4,11 +4,16 @@
 #include "utility.hpp"
 
 #include <SDL.h>
+#include "sdl_util.hpp"
 
+#include <vector>
 #include <string>
 
 //using TexturePtr = std::shared_ptr<sf::Texture>;
-
+struct name : component<name> {
+    std::string str;
+    name(std::string str) : str(str) {}
+};
 struct input : component<input> {
     bool pressing = false;
     int ticks;
@@ -19,53 +24,48 @@ struct position : component<position> {
     position(float x, float y) : x(x), y(y) {}
 };
 struct velocity : component<velocity> {
+    bool inMotion { false };
     float x, y;
     velocity(float x, float y) : x(x), y(y) {}
 };
-struct sprite : component<sprite> {
-    // parent texture (sprite sheet)
-    SDL_Texture* tex;
-    // selected rectangle
-    rectu src;
-    // rendered z-ordering
-    unsigned z;
-    sprite(SDL_Texture* pTexture, const rectu& sourceRectangle, const unsigned& zOrdering) 
-        : tex(pTexture), src(sourceRectangle), z(zOrdering) {}
-};
-/*
-struct graphics : component<graphics> {
-    // shared ownership of a texture
-    std::shared_ptr<sf::Texture> t;
-    // sub-rectangle of that texture to draw
-    sf::IntRect r;
-    // z-ordering
-    unsigned z;
-    graphics(std::shared_ptr<sf::Texture> t, const sf::IntRect& r, const unsigned& z) 
-        : t(t), r(r), z(z) {}
-};
-*/
 struct direction : component<direction> {
-    enum class facing {down, right, left, up};
-    facing dir;
-    direction(std::string direction) {
-        if(direction == "down") dir = facing::down;
-        else if(direction == "right") dir = facing::right;
-        else if(direction == "left") dir = facing::left;
-        else dir = facing::up;
-    }
+    enum class facing {left, right, up, down} dir;
+    direction(facing dir) : dir(dir) {}
+};
+// sprite compositional components
+struct idle : component<idle> {
+    unsigned ticks;
+    idle(unsigned startingTicks) : ticks(startingTicks) {}
+};
+struct walk : component<walk> {
+    unsigned ticks;
+    walk(unsigned startingTicks) : ticks(startingTicks) {}
+};
+template<typename T>
+struct sprite : component<sprite<T>> {
+    // parent texture (sprite sheet)
+    tilesetMetaPtr pTS;
+    unsigned row;
+    unsigned col;
+    // z ordering
+    unsigned z;
+    // switching state - another component
+    T s;
+    sprite(tilesetMetaPtr sourceTilesetMetaPtr, unsigned rowIndex, unsigned colIndex, 
+        const unsigned& zOrdering, const T& t) 
+        : pTS(sourceTilesetMetaPtr), row(rowIndex), col(colIndex), z(zOrdering), s(t) {}
 };
 struct volume : component<volume> {
     float w, h;
     volume(float w, float h) : w(w), h(h) {}
 };
-//struct grid : component<grid> {
-//    vector<vector<int>> g;
-//    grid(vector<vector<int>>& g) : g(g) {}
-//};
-struct view : component<view> {
+struct collide : component<collide> {
+    collide() {}
+};
+struct camera : component<camera> {
     entity target;
     float zoom;
-    view(entity target) : target(target) {}
+    camera(entity target, float zoomLevel) : target(target), zoom(zoomLevel) {}
 };
 struct combat : component<combat> {
     unsigned health;
@@ -76,4 +76,8 @@ struct enemy : component<enemy> {
     state s;
     entity target = 0;
     enemy(state s) : s(s) {}
+};
+struct debug : component<debug> {
+    int val;
+    debug(int val) : val(val) {}
 };

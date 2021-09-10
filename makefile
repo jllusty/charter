@@ -1,12 +1,12 @@
 # build config
 CC = g++
-C_FLAGS = -std=c++17 -g -Wall
+C_FLAGS = -std=c++17 -g3 -Wall
 
 # libs
 #  (*) SDL
-SDL_INC = /usr/include/SDL2 -Dmain=SDL_main
+SDL_INC = /mingw32/include/SDL2 -Dmain=SDL_main
 SDL_LIBDIR = /usr/lib
-SDL_LIBS = -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -mwindows
+SDL_LIBS = -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -mwindows
 #  (*) lua
 LUA_ROOT = /opt/lua-5.4.3
 LUA_INC = $(LUA_ROOT)/include

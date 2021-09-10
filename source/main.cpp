@@ -2,6 +2,7 @@
 #include <chrono>
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_ttf.h>
 
 #include "loader.hpp"
 
@@ -27,6 +28,11 @@ int main(int argc, char* argv[]) {
 
     // Load Window + Graphics
     SDL_Init(SDL_INIT_VIDEO);
+    // initialize SDL_ttf
+    if(TTF_Init()==-1) {
+        glog.get() << "TTF_Init: " << TTF_GetError() << "\n";
+    }
+    // initialize SDL_image
     int imgFlags = IMG_INIT_PNG;
     if(!(IMG_Init(imgFlags) && imgFlags)) {
         glog.get() << "[main thread]: SDL_image could not initialize loading PNG: " << IMG_GetError() << "\n";
@@ -41,7 +47,7 @@ int main(int argc, char* argv[]) {
     if(renderer == nullptr) {
         glog.get() << "SDL failed SDL_CreateRenderer()\n";
     }
-    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+    SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
     // Load SDL Textures
     loader.populateTilemap("testmap", renderer);
     // Instantiate Game Context
@@ -50,9 +56,21 @@ int main(int argc, char* argv[]) {
     // Init Systems
     systems::Input inputSystem;
     systems::Position positionSystem;
+    systems::Velocity velocitySystem;
+    systems::Direction directionSystem;
     systems::Sprite spriteSystem;
     systems::Collision collisionSystem;
     systems::Combat combatSystem;
+    systems::UI uiSystem;
+
+    //systems::DebugGraphics dgSystem;
+
+    // TTF tests
+    TTF_Font* font = TTF_OpenFont("resources\\Azeret_Mono\\static\\AzeretMono-Black.ttf",26);
+    if(font == nullptr) {
+        glog.get() << "[main thread]: Could not load font. TTF_OpenFont: " << TTF_GetError() << "\n";
+    }
+    uiSystem.font = font;
 
     // Main Loop: cap framerate to 60 FPS
     Timer fpsTimer;
@@ -81,11 +99,14 @@ int main(int argc, char* argv[]) {
         // calculate fps
         float avgFPS = countedFrames / (fpsTimer.getTicks() / 1000.f);
         if(avgFPS > 2000000) avgFPS = 0;
+        // report fps
         glog.get() << "[main thread]: " << "fps = " << avgFPS << "\n";
 
         // update systems
         //  these update velocity components, which the collision system uses for resolution
         inputSystem.update(*cxt);
+        velocitySystem.update(*cxt);
+        directionSystem.update(*cxt);
         combatSystem.update(*cxt);
         //  updates velocity components based on results of collision resolution
         collisionSystem.update(*cxt);
@@ -95,7 +116,9 @@ int main(int argc, char* argv[]) {
         // draw systems
         SDL_RenderClear(renderer);
         spriteSystem.update(*cxt, *renderer);
-        
+        uiSystem.update(*cxt, *renderer);
+        //dgSystem.update(*cxt,*renderer);
+
         // draw game
         SDL_RenderPresent(renderer);
         // update counted frames
@@ -108,9 +131,14 @@ int main(int argc, char* argv[]) {
     // Clear Engine-Requested SDL_Texture memory
     loader.destroySDLTextures();
 
+    // clear fonts
+    TTF_CloseFont(font);
+
     // Clear Window + Graphics
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    IMG_Quit();
+    TTF_Quit();
     SDL_Quit();
     return 0;
 }
@@ -132,6 +160,12 @@ bool handleInput(systems::Input& iSys, SDL_Event event) {
         case SDLK_d:
             iSys.Dd = true;
             break;
+        case SDLK_UP:
+            iSys.upArr = true;
+            break;
+        case SDLK_DOWN:
+            iSys.downArr = true;
+            break;
         case SDLK_ESCAPE:
             running = false;
         }
@@ -149,6 +183,12 @@ bool handleInput(systems::Input& iSys, SDL_Event event) {
             break;
         case SDLK_d:
             iSys.Dd = false;
+            break;
+        case SDLK_UP:
+            iSys.upArr = false;
+            break;
+        case SDLK_DOWN:
+            iSys.downArr = false;
             break;
         }
     }

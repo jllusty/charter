@@ -2,21 +2,63 @@
 
 #include <memory>
 
-// static vars
-//  logging output stream
-static std::ostream* log;
-//  resource directory (workaround lack of std::filesystem)
-static std::string resDir = "";
+// local namespace (bound to this translation unit)
+namespace {
+    //  logging output stream
+    std::ostream* log;
+    //  resource directory (workaround lack of std::filesystem)
+    std::string resDir = "";
 
-// auxillary methods: careful reading using caught exceptions
-// read string from attribute, but catch nullptr in case it is missing
-static std::string readAttrStr(tinyxml2::XMLElement* xml, const std::string& attr) {
-    std::string result = "";
-    if(xml != nullptr) {
-        if(xml->Attribute(attr.c_str()) != nullptr) {
-            result = std::string(xml->Attribute(attr.c_str()));
+    // auxillary methods: careful reading using caught exceptions
+    // read string from attribute, but catch nullptr in case it is missing
+    std::string readAttrStr(tinyxml2::XMLElement* xml, const std::string& attr) {
+        std::string result = "";
+        if(xml != nullptr) {
+            if(xml->Attribute(attr.c_str()) != nullptr) {
+                result = std::string(xml->Attribute(attr.c_str()));
+            }
+            else {
+                std::string name;
+                if(xml->Value() != nullptr) {
+                    name = std::string(xml->Value());
+                }
+                else {
+                    name = "?";
+                }
+                if(log != nullptr) {
+                    *log << "[tmx]: element <" << name << "> is missing an attribute: '" 
+                              << attr << "'\n";
+                    log->flush();
+                }
+            }
         }
-        else {
+        return result;
+    }
+    // read unsigned int from attribute
+    unsigned readAttrUint(tinyxml2::XMLElement* xml, const std::string& attr) {
+        std::string str = readAttrStr(xml,attr);
+        unsigned result = 0;
+        try {
+            result = stoul(str);
+        }
+        catch(const std::invalid_argument& ex) {
+            std::string name;
+            if(xml != nullptr) {
+                if(xml->Value() != nullptr) {
+                    name = std::string(xml->Value());
+                }
+                else {
+                    name = "?";
+                }
+            }
+            if(log != nullptr) {
+                *log << "[tmx]: " << " could not convert element <"
+                          << name << ">'s attribute '" << attr << "' = '" << result 
+                          << "' to an unsigned integer.\n";
+                log->flush();
+            }
+        }
+        catch(const std::out_of_range& ex) {
             std::string name;
             if(xml->Value() != nullptr) {
                 name = std::string(xml->Value());
@@ -25,137 +67,88 @@ static std::string readAttrStr(tinyxml2::XMLElement* xml, const std::string& att
                 name = "?";
             }
             if(log != nullptr) {
-                *log << "[tmx]: element <" << name << "> is missing an attribute: '" 
-                          << attr << "'\n";
+                *log << "[tmx]: element <" << name << ">'s attribute '" << attr 
+                          << "' = '" << result << "' is too large to convert to an unsigned integer.\n";
+                log->flush();
             }
         }
+        return result;
     }
-    return result;
-}
-// read unsigned int from attribute
-static unsigned readAttrUint(tinyxml2::XMLElement* xml, const std::string& attr) {
-    std::string str = readAttrStr(xml,attr);
-    unsigned result = 0;
-    try {
-        result = stoul(str);
+    // read float from attribute
+    float readAttrFloat(tinyxml2::XMLElement* xml, const std::string& attr) {
+        std::string str = readAttrStr(xml,attr);
+        float result = 0.f;
+        try {
+            result = stof(str);
+        }
+        catch(const std::invalid_argument& ex) {
+            std::string name;
+            if(xml->Value() != nullptr) {
+                name = std::string(xml->Value());
+            }
+            else {
+                name = "?";
+            }
+            if(log != nullptr) {
+                *log << "[tmx]: " << " could not convert element <"
+                          << name << ">'s attribute '" << attr << "' = '" << result 
+                          << "' to a float.\n";
+            }
+        }
+        catch(const std::out_of_range& ex) {
+            std::string name;
+            if(xml->Value() != nullptr) {
+                name = std::string(xml->Value());
+            }
+            else {
+                name = "?";
+            }
+            if(log != nullptr) {
+                *log << "[tmx]: element <" << name << ">'s attribute '" << attr 
+                          << "' = '" << result << "' is too large to convert to a float.\n";
+            }
+        }
+        return result;
     }
-    catch(const std::invalid_argument& ex) {
-        std::string name;
-        if(xml->Value() != nullptr) {
-            name = std::string(xml->Value());
-        }
-        else {
-            name = "?";
-        }
-        if(log != nullptr) {
-            *log << "[tmx]: " << " could not convert element <"
-                      << name << ">'s attribute '" << attr << "' = '" << result 
-                      << "' to an unsigned integer.\n";
-        }
-    }
-    catch(const std::out_of_range& ex) {
-        std::string name;
-        if(xml->Value() != nullptr) {
-            name = std::string(xml->Value());
-        }
-        else {
-            name = "?";
-        }
-        if(log != nullptr) {
-            *log << "[tmx]: element <" << name << ">'s attribute '" << attr 
-                      << "' = '" << result << "' is too large to convert to an unsigned integer.\n";
-        }
-    }
-    return result;
-}
-// read float from attribute
-static float readAttrFloat(tinyxml2::XMLElement* xml, const std::string& attr) {
-    std::string str = readAttrStr(xml,attr);
-    float result = 0.f;
-    try {
-        result = stof(str);
-    }
-    catch(const std::invalid_argument& ex) {
-        std::string name;
-        if(xml->Value() != nullptr) {
-            name = std::string(xml->Value());
-        }
-        else {
-            name = "?";
-        }
-        if(log != nullptr) {
-            *log << "[tmx]: " << " could not convert element <"
-                      << name << ">'s attribute '" << attr << "' = '" << result 
-                      << "' to a float.\n";
-        }
-    }
-    catch(const std::out_of_range& ex) {
-        std::string name;
-        if(xml->Value() != nullptr) {
-            name = std::string(xml->Value());
-        }
-        else {
-            name = "?";
-        }
-        if(log != nullptr) {
-            *log << "[tmx]: element <" << name << ">'s attribute '" << attr 
-                      << "' = '" << result << "' is too large to convert to a float.\n";
-        }
-    }
-    return result;
-}
 
-// local-only methods: do not pollute namespace with XMLElement references
-static std::vector<tmx::tileset> loadTilesets(tinyxml2::XMLElement* mapXML) {
-    using namespace std;
-    using namespace tinyxml2;
-    using namespace tmx;
-    assert(mapXML != nullptr);
-    XMLElement* tilesetXML = mapXML->FirstChildElement("tileset");
-    vector<tileset> tilesets;
-    while(tilesetXML != nullptr) {
-        tileset ts;
-        ts.firstgid = readAttrUint(tilesetXML,"firstgid");
-        // if tileset is external, read children from there
-        XMLDocument doc;
-        XMLElement* rTilesetXML = nullptr;
-        if(tilesetXML->Attribute("source") != nullptr) {
-            string filename = readAttrStr(tilesetXML,"source");
-            string filepath = resDir + "\\" + filename;
-            XMLError err = doc.LoadFile(filepath.c_str());
-            if(err != XML_SUCCESS) {
-                cout << "Failed to parse XML. Error = " << err << "\n";
-            }
-            rTilesetXML = doc.FirstChildElement("tileset");
-        }
-        else {
-            rTilesetXML = tilesetXML;
-        }
-        ts.name = readAttrStr(rTilesetXML,"name");
-        ts.tilewidth = readAttrUint(rTilesetXML,"tilewidth");
-        ts.tileheight = readAttrUint(rTilesetXML,"tileheight");
-        ts.tilecount = readAttrUint(rTilesetXML,"tilecount");
-        ts.objectalignment = readAttrStr(rTilesetXML,"objectalignment");
-        ts.img.source = readAttrStr(rTilesetXML->FirstChildElement("image"),"source");
-        ts.img.width = readAttrUint(rTilesetXML->FirstChildElement("image"),"width");
-        ts.img.height = readAttrUint(rTilesetXML->FirstChildElement("image"),"height");
+    // local-only methods: do not pollute global namespace with XMLElement references
+    tmx::tileset loadSingleTileset(tinyxml2::XMLElement* tilesetXML);
+    std::vector<tmx::tileset> loadTilesets(tinyxml2::XMLElement* mapXML);
+    std::vector<tmx::layer> loadLayers(tinyxml2::XMLElement* mapXML);
+    std::vector<tmx::objectgroup> loadObjectGroups(tinyxml2::XMLElement* mapXML);
+    // 
+    tmx::tileset loadSingleTileset(tinyxml2::XMLElement* tilesetXML) {
+        assert(tilesetXML != nullptr);
+        tmx::tileset ts;
+        ts.name = readAttrStr(tilesetXML,"name");
+        ts.tilewidth = readAttrUint(tilesetXML,"tilewidth");
+        ts.tileheight = readAttrUint(tilesetXML,"tileheight");
+        ts.tilecount = readAttrUint(tilesetXML,"tilecount");
+        ts.objectalignment = readAttrStr(tilesetXML,"objectalignment");
+        ts.img.source = readAttrStr(tilesetXML->FirstChildElement("image"),"source");
+        ts.img.width = readAttrUint(tilesetXML->FirstChildElement("image"),"width");
+        ts.img.height = readAttrUint(tilesetXML->FirstChildElement("image"),"height");
+        ts.columns = readAttrUint(tilesetXML,"columns");
         // get tiles
-        XMLElement* tileXML = rTilesetXML->FirstChildElement("tile");
+        tinyxml2::XMLElement* tileXML = tilesetXML->FirstChildElement("tile");
         while(tileXML != nullptr) {
-            tile t;
+            tmx::tile t;
             t.id = readAttrUint(tileXML,"id");
+            if(tileXML->FirstChildElement("objectgroup") != nullptr) {
+                t.objs = loadObjectGroups(tileXML).back();
+            }
             // get properties
-            XMLElement* propsXML = tileXML->FirstChildElement("properties");
-            XMLElement* propXML = (propsXML != nullptr) 
+            tinyxml2::XMLElement* propsXML = tileXML->FirstChildElement("properties");
+            tinyxml2::XMLElement* propXML = (propsXML != nullptr) 
                                 ? propsXML->FirstChildElement("property")
                                 : nullptr;
             while(propXML != nullptr) {
-                property p;
+                tmx::property p;
                 p.name = readAttrStr(propXML,"name");
                 // catch nullptr manually here, need to set default = "string"
                 const char* pType = propXML->Attribute("type");
                 if(pType != nullptr) {
-                    p.type = string(pType);
+                    p.type = std::string(pType);
                 }
                 else {
                     p.type = "string";
@@ -168,99 +161,137 @@ static std::vector<tmx::tileset> loadTilesets(tinyxml2::XMLElement* mapXML) {
             ts.tiles.push_back(t);
             tileXML = tileXML->NextSiblingElement("tile");
         }
-        tilesetXML = tilesetXML->NextSiblingElement("tileset");
-        tilesets.push_back(ts);
+        return ts;
     }
-    return tilesets;
-}
-static std::vector<tmx::layer> loadLayers(tinyxml2::XMLElement* mapXML) {
-    using namespace std;
-    using namespace tinyxml2;
-    using namespace tmx;
-    assert(mapXML != nullptr); 
-    XMLElement* layerXML = mapXML->FirstChildElement("layer");
-    vector<layer> layers;
-    while(layerXML != nullptr) {
-        layer l;
-        l.id = readAttrUint(layerXML,"id");
-        l.name = readAttrStr(layerXML,"name");
-        l.width = readAttrUint(layerXML,"width");
-        l.height = readAttrUint(layerXML,"height");
-        XMLElement* dataXML = layerXML->FirstChildElement("data");
-        l.encoding = readAttrStr(dataXML,"encoding");
-        string dataStr(dataXML->GetText());
-        if(l.encoding != "csv") {
-            if(log != nullptr) {
-                *log << "[tmx]: encoding of <data> element is not csv!\n";
-            }
-        }
-        istringstream iss(dataStr);
-        for(unsigned i = 0; i < l.height; ++i) {
-            l.data.emplace_back();
-            for(unsigned j = 0; j < l.width; ++j) {
-                string num;
-                getline(iss,num,',');
-                l.data.back().push_back(stoul(num));
-            }
-        }
-        layers.push_back(l);
-        layerXML = layerXML->NextSiblingElement("layer");
-    }
-    return layers;
-}
-static std::vector<tmx::objectgroup> loadObjectGroups(tinyxml2::XMLElement* mapXML) {
-    using namespace std;
-    using namespace tinyxml2;
-    using namespace tmx;
-    assert(mapXML != nullptr);
-    XMLElement* groupXML = mapXML->FirstChildElement("objectgroup");
-    vector<objectgroup> groups;
-    while(groupXML != nullptr) {
-        objectgroup group;
-        group.id = stoul(groupXML->Attribute("id"));
-        group.id = readAttrUint(groupXML,"id");
-        group.name = readAttrStr(groupXML,"name");
-        // get objects
-        XMLElement* objectElement = groupXML->FirstChildElement("object");
-        while(objectElement != nullptr) {
-            object obj;
-            obj.id = readAttrUint(objectElement,"id");
-            obj.name = readAttrStr(objectElement,"name");
-            obj.type = readAttrStr(objectElement,"type");
-            obj.x = readAttrFloat(objectElement,"x");
-            obj.y = readAttrFloat(objectElement,"y");
-            obj.gid = readAttrUint(objectElement,"gid");
-            obj.width = readAttrFloat(objectElement,"width");
-            obj.height = readAttrFloat(objectElement,"height");
-            // get properties
-            XMLElement* propsXML = objectElement->FirstChildElement("properties");
-            XMLElement* propXML = (propsXML != nullptr) 
-                                ? propsXML->FirstChildElement("property")
-                                : nullptr;
-            while(propXML != nullptr) {
-                property p;
-                p.name = readAttrStr(propXML,"name");
-                // catch default(nullptr) = "string"
-                const char* pType = propXML->Attribute("type");
-                if(pType != nullptr) {
-                    p.type = string(pType);
+    std::vector<tmx::tileset> loadTilesets(tinyxml2::XMLElement* mapXML) {
+        assert(mapXML != nullptr);
+        tinyxml2::XMLElement* tilesetXML = mapXML->FirstChildElement("tileset");
+        std::vector<tmx::tileset> tilesets;
+        while(tilesetXML != nullptr) {
+            tmx::tileset ts;
+            if(tilesetXML->Attribute("source") != nullptr) {
+                std::string source = readAttrStr(tilesetXML,"source");
+                std::string filepath = resDir + "//" + source;
+                if(log != nullptr) {
+                    *log << "[tmx]: needs to read an external tileset: '" << filepath << "'\n";
+                    log->flush();
+                }
+                tinyxml2::XMLDocument doc;
+                tinyxml2::XMLError err = doc.LoadFile(filepath.c_str());
+                if(err != tinyxml2::XML_SUCCESS) {
+                    if(log != nullptr) {
+                        *log << "[tmx]: Failed to parse XML of '" << filepath << "'\n\tError = " << err << "\n";
+                        log->flush();
+                    }
                 }
                 else {
-                    p.type = "string";
+                    ts = loadSingleTileset(doc.FirstChildElement("tileset"));
                 }
-                p.value = readAttrStr(propXML,"value");
-                //
-                obj.properties.push_back(p);
-                propXML = propXML->NextSiblingElement("property");
             }
-            group.objects.push_back(obj);
-            objectElement = objectElement->NextSiblingElement("object");
+            else {
+                ts = loadSingleTileset(tilesetXML);
+            }
+            ts.firstgid = readAttrUint(tilesetXML,"firstgid");
+            tilesets.push_back(ts);
+            if(log != nullptr) {
+                *log << "[tmx]: loaded tileset for '" << ts.name << "'\n";
+                log->flush();
+            }
+            tilesetXML = tilesetXML->NextSiblingElement("tileset");
         }
-        groups.push_back(group);
-        groupXML = groupXML->NextSiblingElement("objectgroup");
+        return tilesets;
     }
-    return groups;
+    std::vector<tmx::layer> loadLayers(tinyxml2::XMLElement* mapXML) {
+        using namespace std;
+        using namespace tinyxml2;
+        using namespace tmx;
+        assert(mapXML != nullptr); 
+        XMLElement* layerXML = mapXML->FirstChildElement("layer");
+        vector<layer> layers;
+        while(layerXML != nullptr) {
+            layer l;
+            l.id = readAttrUint(layerXML,"id");
+            l.name = readAttrStr(layerXML,"name");
+            l.width = readAttrUint(layerXML,"width");
+            l.height = readAttrUint(layerXML,"height");
+            XMLElement* dataXML = layerXML->FirstChildElement("data");
+            l.encoding = readAttrStr(dataXML,"encoding");
+            string dataStr(dataXML->GetText());
+            if(l.encoding != "csv") {
+                if(log != nullptr) {
+                    *log << "[tmx]: encoding of <data> element is not csv!\n";
+                }
+            }
+            istringstream iss(dataStr);
+            for(unsigned i = 0; i < l.height; ++i) {
+                l.data.emplace_back();
+                for(unsigned j = 0; j < l.width; ++j) {
+                    string num;
+                    getline(iss,num,',');
+                    l.data.back().push_back(stoul(num));
+                }
+            }
+            layers.push_back(l);
+            layerXML = layerXML->NextSiblingElement("layer");
+        }
+        return layers;
+    }
+    std::vector<tmx::objectgroup> loadObjectGroups(tinyxml2::XMLElement* mapXML) {
+        using namespace std;
+        using namespace tinyxml2;
+        using namespace tmx;
+        assert(mapXML != nullptr);
+        XMLElement* groupXML = mapXML->FirstChildElement("objectgroup");
+        vector<objectgroup> groups;
+        while(groupXML != nullptr) {
+            objectgroup group;
+            group.id = stoul(groupXML->Attribute("id"));
+            group.id = readAttrUint(groupXML,"id");
+            group.name = readAttrStr(groupXML,"name");
+            // get objects
+            XMLElement* objectElement = groupXML->FirstChildElement("object");
+            while(objectElement != nullptr) {
+                object obj;
+                obj.id = readAttrUint(objectElement,"id");
+                obj.name = readAttrStr(objectElement,"name");
+                obj.type = readAttrStr(objectElement,"type");
+                obj.x = readAttrFloat(objectElement,"x");
+                obj.y = readAttrFloat(objectElement,"y");
+                obj.gid = readAttrUint(objectElement,"gid");
+                obj.width = readAttrFloat(objectElement,"width");
+                obj.height = readAttrFloat(objectElement,"height");
+                // get properties
+                XMLElement* propsXML = objectElement->FirstChildElement("properties");
+                XMLElement* propXML = (propsXML != nullptr) 
+                                    ? propsXML->FirstChildElement("property")
+                                    : nullptr;
+                while(propXML != nullptr) {
+                    property p;
+                    p.name = readAttrStr(propXML,"name");
+                    // catch default(nullptr) = "string"
+                    const char* pType = propXML->Attribute("type");
+                    if(pType != nullptr) {
+                        p.type = string(pType);
+                    }
+                    else {
+                        p.type = "string";
+                    }
+                    p.value = readAttrStr(propXML,"value");
+                    //
+                    obj.properties.push_back(p);
+                    propXML = propXML->NextSiblingElement("property");
+                }
+                group.objects.push_back(obj);
+                objectElement = objectElement->NextSiblingElement("object");
+            }
+            groups.push_back(group);
+            groupXML = groupXML->NextSiblingElement("objectgroup");
+        }
+        return groups;
+    }
 }
+
+// global namespace
 namespace tmx {
     // print structs
     // property
@@ -274,6 +305,9 @@ namespace tmx {
         std::ostringstream oss;
         oss << "\t\ttile members:\n";
         oss << "\t\t\tid = " << t.id << "\n";
+        for(object o : t.objs.objects) {
+            oss << say(o);
+        }
         for(property p : t.properties) {
             oss << say(p);
         }
@@ -361,7 +395,22 @@ namespace tmx {
     void setLoggingStream(std::ostream& loggingStream) {
         log = &loggingStream;
     }
-    // main method
+    tileset loadTileset(const std::string& filename) {
+        using namespace tinyxml2;
+        using namespace std;
+        tileset ts;
+        XMLDocument doc;
+        string filepath = resDir + "\\" + filename;
+        XMLError err = doc.LoadFile(filepath.c_str());
+        if(err != XML_SUCCESS) {
+            cout << "Failed to parse XML of '" << filepath << "'\n\tError = " << err << "\n";
+            cout.flush();
+            return ts;
+        }
+        XMLElement* tilesetXML = doc.FirstChildElement("tileset");
+        return loadSingleTileset(tilesetXML);
+    }
+    // main methods
     tilemap loadTilemap(const std::string& filename) {
         using namespace tinyxml2;
         using namespace std;

@@ -32,11 +32,6 @@ namespace tmx {
         std::string value{};
     };
 
-    struct tile {
-        unsigned id{0};
-        std::vector<property> properties{};
-    };
-
     struct object {
         unsigned id{0};
         std::string name{};
@@ -54,6 +49,12 @@ namespace tmx {
         unsigned id{0};
         std::string name{};
         std::vector<object> objects{};
+    };
+    
+    struct tile {
+        unsigned id{0};
+        std::vector<property> properties{};
+        objectgroup objs;
     };
 
     struct tileset {
@@ -95,5 +96,6 @@ namespace tmx {
     std::string say(tilemap t);
     void setLoggingStream(std::ostream& loggingStream);
     void setResourceDirectory(const std::string& resourceDirectory);
+    tileset loadTileset(const std::string& filename);
     tilemap loadTilemap(const std::string& filename);
 }

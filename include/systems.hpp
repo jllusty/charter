@@ -1,8 +1,9 @@
 #include "system.hpp"
 
-//#include "SFML/Graphics.hpp"
-
 #include "components.hpp"
+
+#include <SDL.h>
+#include <SDL_ttf.h>
 
 #include <vector>
 #include <utility>
@@ -12,10 +13,14 @@ namespace systems {
     struct Position {
         void update(Context &c);
     };
+    // velocity system
+    struct Velocity {
+        void update(Context &c);
+    };
     // player input system (use velocity to update)
     struct Input {
-        bool Wd = false, Ad = false;
-        bool Sd = false, Dd = false;
+        bool Wd = false, Ad = false, Sd = false, Dd = false;
+        bool upArr = false, downArr = false;
         void update(Context &c); 
     };
     struct Direction {
@@ -24,19 +29,6 @@ namespace systems {
     struct Sprite {
         void update(Context &c, SDL_Renderer& r);
     };
-    /*
-    // player graphics system (sprite with directionality)
-    struct Graphics {
-        void update(Context& c, sf::RenderTarget& rt);
-    };
-    // View (viewport / scrolling world scene)
-    struct View {
-        float windowWidth = 0, windowHeight = 0;
-        void update(Context& c, sf::RenderTarget& rt);
-        View(float windowWidth, float windowHeight) : 
-            windowWidth(windowWidth), windowHeight(windowHeight) {}
-    };
-    */
     // Collision
     struct Collision {
         void update(Context& c);
@@ -45,4 +37,15 @@ namespace systems {
     struct Combat {
         void update(Context& c);
     };
+    // User Interface
+    struct UI {
+        TTF_Font* font;
+        void update(Context& c, SDL_Renderer& r);
+    };
+    // Debug Graphics
+    /*
+    struct DebugGraphics {
+        void update(Context& c, SDL_Renderer& r);
+    };
+    */
 }
