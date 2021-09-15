@@ -302,10 +302,30 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
                     cxt->addComponent<direction>(e,dir);
                 }
                 else if(prop.name == "combat") {
-                    cxt->addComponent<combat>(e,4);
+                    cxt->addComponent<combat>(e,400);
                 }
                 else if(prop.name == "enemy") {
                     cxt->addComponent<enemy>(e,enemy::state::passive);
+                }
+                else if(prop.name == "layer") {
+                    cxt->addComponent<layer>(e);
+                }
+                else if(prop.name == "cursor") {
+                    cxt->addComponent<cursor>(e,0.0f,0.0f);
+                }
+                else if(prop.name == "cursorsprite") {
+                    std::string sheetname = prop.value;
+                    glog.get() << "[loader]: read 'cursorsprite' property: need sheetname:'" << sheetname << "'\n";
+                    glog.get().flush();
+                    tmx::tileset ts = tmx::loadTileset(sheetname);
+                    // TODO: don't load more than you need to
+                    if(tilesetMetas.count(ts.name) != 0) {
+                        spriteMetas[ts.name] = tilesetMetas[ts.name];
+                    }
+                    else if(spriteMetas.count(ts.name) == 0) {
+                        spriteMetas[ts.name] = loadTileset(ts,renderer);
+                    }
+                    cxt->addComponent<sprite<cursor>>(e,spriteMetas[ts.name],0,0,0,cursor(0.0f,0.0f));
                 }
             }
         }

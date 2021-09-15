@@ -1,3 +1,7 @@
+// Of all my files, this is the one that needs the most work.
+// There is too much state within the xMeta structures - I need to 
+// really separate it into smaller chunks for better transformation / composition into components.
+
 #pragma once
 #include "utility.hpp"
 

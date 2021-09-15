@@ -1,3 +1,5 @@
+// entry code through SDL layer
+
 #include <iostream>
 #include <chrono>
 #include <SDL.h>
@@ -18,6 +20,7 @@ const unsigned screenHeight = 720;
 const unsigned screenFPS = 60;
 const unsigned screenTickPerFrame = 1000 / screenFPS;
 
+// handles a single event
 bool handleInput(systems::Input& iSys, SDL_Event event);
 
 int main(int argc, char* argv[]) {
@@ -113,6 +116,9 @@ int main(int argc, char* argv[]) {
         //  updates position unconditionally on velocity
         positionSystem.update(*cxt);
 
+        // update camera
+        systems::cam.update(*cxt,*renderer);
+
         // draw systems
         SDL_RenderClear(renderer);
         spriteSystem.update(*cxt, *renderer);
@@ -146,6 +152,26 @@ int main(int argc, char* argv[]) {
 // pass input to input system (move into systems::Input)
 bool handleInput(systems::Input& iSys, SDL_Event event) {
     bool running = true;
+    if(event.type == SDL_MOUSEMOTION) {
+        iSys.mouseX = event.motion.x;
+        iSys.mouseY = event.motion.y;
+    }
+    if(event.type == SDL_MOUSEBUTTONDOWN) {
+        if(event.button.button == SDL_BUTTON_LEFT) {
+            iSys.mouseLeftd = true;
+        }
+        else if(event.button.button == SDL_BUTTON_RIGHT) {
+            iSys.mouseRightd = true;
+        }
+    }
+    if(event.type == SDL_MOUSEBUTTONUP) {
+        if(event.button.button == SDL_BUTTON_LEFT) {
+            iSys.mouseLeftd = false;
+        }
+        else if(event.button.button == SDL_BUTTON_RIGHT) {
+            iSys.mouseRightd = false;
+        }
+    }
     if(event.type == SDL_KEYDOWN) {
         switch(event.key.keysym.sym) {
         case SDLK_w:
@@ -168,6 +194,7 @@ bool handleInput(systems::Input& iSys, SDL_Event event) {
             break;
         case SDLK_ESCAPE:
             running = false;
+            break;
         }
     }
     if(event.type == SDL_KEYUP) {

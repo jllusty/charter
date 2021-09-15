@@ -29,6 +29,11 @@ public:
         //assert(m<T>.count(e) > 0);
         m<T>[e] = std::make_shared<T>(args...);
     }
+    template<typename T>
+    void copyComponent(entity from, entity to) {
+        static_assert(std::is_base_of<component<T>, T>::value, "component<T> is undefined\n");
+        m<T>[to] = std::make_shared<T>(*m<T>[from]);
+    }
     // get component of entity
     template<typename T>
     typename component<T>::ptr getComponent(entity e) {

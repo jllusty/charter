@@ -1,5 +1,6 @@
 #include "systems.hpp"
 
+#include <queue>
 #include <cmath>
 #include "sdl_util.hpp"
 
@@ -7,6 +8,7 @@
 extern Logger glog;
 
 namespace systems {
+    Camera cam{ };
     // position system
     //   (position,velocity) ? (position)
     void Position::update(Context &c) {
@@ -83,16 +85,43 @@ namespace systems {
                 if(upArr) c.getComponent<camera>(e)->zoom += 1.0f/60.f;
                 else if(downArr) c.getComponent<camera>(e)->zoom -= 1.0f/60.f;
             }
+            // mouse position debug
+            if(c.hasComponents<position,cursor,sprite<idle>,sprite<cursor>>(e)) {
+                c.getComponent<cursor>(e)->x = mouseX;
+                c.getComponent<cursor>(e)->y = mouseY;
+                if(mouseLeftd && !mousePressing) {
+                    mousePressing = true;
+                    entity spawned = c.addEntity();
+                    // entity location in world coordinates
+                    float x = c.getComponent<position>(e)->x;
+                    float y = c.getComponent<position>(e)->y;
+                    c.addComponent<position>(spawned, x, y);
+                    // needs to be spawned in world coordinates, not screen coordinates
+                    auto [wX, wY] = cam.getWorldCoordinates(mouseX, mouseY);
+                    float dx = wX-x, dy = wY-y;
+                    float len = sqrtf(dx*dx + dy*dy);
+                    float speed = 2.0f;
+                    dx = speed * dx / len;
+                    dy = speed * dy / len;
+                    c.addComponent<velocity>(spawned, dx, dy);
+                    c.copyComponent<sprite<idle>>(e,spawned);
+                    glog.get() << "[systems::Input]: spawned an entity!\n";
+                    // needs spawner systems to despawn entities
+                }
+                else if(!mouseLeftd) {
+                    mousePressing = false;
+                }
+            }
         }
     }
-    void Sprite::update(Context& c, SDL_Renderer& r) {
+    // camera system
+    void Camera::update(Context &c, SDL_Renderer& r) {
         // get viewport dimensions
         SDL_Rect vr;
         SDL_RenderGetViewport(&r, &vr);
-        unsigned vw = vr.w, vh = vr.h;
+        vw = vr.w;
+        vh = vr.h;
         // get camera
-        float cx = 0.0f, cy = 0.0f;
-        float zoom = 1.0f;
         for(entity e: c.getEntities()) {
             if(c.hasComponents<camera>(e)) {
                 entity target = c.getComponent<camera>(e)->target;
@@ -100,44 +129,124 @@ namespace systems {
                     // center of screen
                     cx = c.getComponent<position>(target)->x + c.getComponent<volume>(target)->w/2.0f;
                     cy = c.getComponent<position>(target)->y + c.getComponent<volume>(target)->h/2.0f;
-                    glog.get() << "[systems::Sprite]: world position of center of screen: (" << cx << "," << cy << ")\n";
+                    glog.get() << "[systems::Camera]: world position of center of screen: (" << cx << "," << cy << ")\n";
                 }
                 else {
-                    glog.get() << "[systems::Sprite]: camera targeted to non-positional entity\n";
+                    glog.get() << "[systems::Camera]: camera targeted to non-positional entity\n";
                 }
                 zoom = c.getComponent<camera>(e)->zoom;
                 break;
             }
         }
-
-        // draw sprites
+    }
+    std::pair<float,float> Camera::getWorldCoordinates(float x, float y) {
+        float wx = (x - vw/2)/zoom + cx;
+        float wy = (y - vh/2)/zoom + cy;
+        return {wx, wy};
+    }
+    std::pair<float,float> Camera::getCameraCoordinates(float x, float y) {
+        return { (x-cx)*zoom+vw/2, (y-cy)*zoom+vh/2 };
+    }
+    // sprite system: do way too many things
+    void Sprite::update(Context& c, SDL_Renderer& r) {
+        // order sprites by z
+        using ep = std::pair<entity,float>;
+        std::vector<ep> eps;
+        auto cmp = [](ep ep1, ep ep2) -> bool
+        {
+            return(ep1.second > ep2.second);
+        };
+        std::priority_queue pq(cmp,eps);   
+        std::priority_queue tops(cmp,eps); // draw last by request
+        std::vector<entity> cursors;
         for(entity e : c.getEntities()) {
             // idle sprites
-            if(c.hasComponents<position,sprite<idle>>(e)) {
-                float x = c.getComponent<position>(e)->x;
-                float y = c.getComponent<position>(e)->y;
-                SDL_Texture* tex = c.getComponent<sprite<idle>>(e)->pTS->tex;
-                unsigned& ticks = ++c.getComponent<sprite<idle>>(e)->s.ticks;
-                unsigned row = c.getComponent<sprite<idle>>(e)->row;
-                unsigned& col = c.getComponent<sprite<idle>>(e)->col;
-                if(ticks > 60) {
-                    col = (col + 1) % c.getComponent<sprite<idle>>(e)->pTS->numCols;
-                    ticks = 0;
-                }
-                SDL_Rect src = c.getComponent<sprite<idle>>(e)->pTS->get(row,col);
-                // transform to camera coordinates
-                SDL_Rect dest;
-                dest.x = (x-cx)*zoom+vw/2;
-                dest.y = (y-cy)*zoom+vh/2;
-                dest.w = src.w*zoom; dest.h = src.h*zoom;
-                glog.get() << "[systems::Sprite]: calling SDL_RenderCopy on \n";
-                glog.get() << "\tsource = [x = " << src.x << ",y = " << src.y 
-                          << ",w = " << src.w << ",h = " << src.h << "]\n";
-                glog.get() << "\tdest = [x = " << dest.x << ",y = " << dest.y 
-                          << ",w = " << dest.w << ",h = " << dest.h << "]\n";
-                
-                SDL_RenderCopy(&r, tex, &src, &dest);
+            if(c.hasComponents<cursor,sprite<cursor>>(e)) {
+                cursors.push_back(e);
             }
+            if(c.hasComponents<position,sprite<idle>>(e)) {
+                if(c.hasComponents<layer>(e)) {
+                    tops.emplace(e,c.getComponent<sprite<idle>>(e)->z + c.getComponent<position>(e)->y);
+                }
+                else pq.emplace(e,c.getComponent<sprite<idle>>(e)->z + c.getComponent<position>(e)->y);
+            }
+        }
+        // render according to z, applies a camera transform
+        while(!pq.empty()) {
+            auto [e, zl] = pq.top(); pq.pop();
+            auto s = c.getComponent<sprite<idle>>(e);
+            float x = c.getComponent<position>(e)->x;
+            float y = c.getComponent<position>(e)->y;
+            SDL_Texture* tex = s->pTS->tex;
+            unsigned& ticks = ++s->s.ticks;
+            unsigned row = s->row;
+            unsigned& col = s->col;
+            if(ticks > 60) {
+                col = (col + 1) % s->pTS->numCols;
+                ticks = 0;
+            }
+            SDL_Rect src = s->pTS->get(row,col);
+            // transform to camera coordinates (maybe make a method for a full rect)
+            SDL_Rect dest;
+            auto [cx, cy] = cam.getCameraCoordinates(x,y);
+            dest.x = cx;
+            dest.y = cy;
+            dest.w = src.w*cam.zoom; dest.h = src.h*cam.zoom;
+            glog.get() << "[systems::Sprite]: calling SDL_RenderCopy on \n";
+            glog.get() << "\tsource = [x = " << src.x << ",y = " << src.y 
+                      << ",w = " << src.w << ",h = " << src.h << "]\n";
+            glog.get() << "\tdest = [x = " << dest.x << ",y = " << dest.y 
+                      << ",w = " << dest.w << ",h = " << dest.h << "]\n";
+            SDL_RenderCopy(&r, tex, &src, &dest);
+        }
+        // always drawn on top of all entities, with the exception of cursors
+        while(!tops.empty()) {
+            auto [e, zl] = tops.top(); tops.pop();
+            auto s = c.getComponent<sprite<idle>>(e);
+            float x = c.getComponent<position>(e)->x;
+            float y = c.getComponent<position>(e)->y;
+            SDL_Texture* tex = s->pTS->tex;
+            unsigned& ticks = ++s->s.ticks;
+            unsigned row = s->row;
+            unsigned& col = s->col;
+            if(ticks > 60) {
+                col = (col + 1) % s->pTS->numCols;
+                ticks = 0;
+            }
+            SDL_Rect src = s->pTS->get(row,col);
+            // transform to camera coordinates
+            SDL_Rect dest;
+            auto [cx, cy] = cam.getCameraCoordinates(x,y);
+            dest.x = cx;
+            dest.y = cy;
+            dest.w = src.w*cam.zoom; dest.h = src.h*cam.zoom;
+            glog.get() << "[systems::Sprite]: calling SDL_RenderCopy on \n";
+            glog.get() << "\tsource = [x = " << src.x << ",y = " << src.y 
+                      << ",w = " << src.w << ",h = " << src.h << "]\n";
+            glog.get() << "\tdest = [x = " << dest.x << ",y = " << dest.y 
+                      << ",w = " << dest.w << ",h = " << dest.h << "]\n";
+            SDL_RenderCopy(&r, tex, &src, &dest);
+        }
+        // cursors
+        for(entity e : cursors) {
+            auto s = c.getComponent<sprite<cursor>>(e);
+            float x = c.getComponent<cursor>(e)->x;
+            float y = c.getComponent<cursor>(e)->y;
+            SDL_Texture* tex = s->pTS->tex;
+            unsigned row = s->row;
+            unsigned col = s->col;
+            SDL_Rect src = s->pTS->get(row,col);
+            // transform to camera coordinates
+            SDL_Rect dest;
+            dest.x = x;
+            dest.y = y;
+            dest.w = src.w; dest.h = src.h;
+            glog.get() << "[systems::Sprite]: calling SDL_RenderCopy on \n";
+            glog.get() << "\tsource = [x = " << src.x << ",y = " << src.y 
+                      << ",w = " << src.w << ",h = " << src.h << "]\n";
+            glog.get() << "\tdest = [x = " << dest.x << ",y = " << dest.y 
+                      << ",w = " << dest.w << ",h = " << dest.h << "]\n";
+            SDL_RenderCopy(&r, tex, &src, &dest);
         }
     }
     // direction system
@@ -165,6 +274,8 @@ namespace systems {
     }
     // Collision
     void Collision::update(Context& c) {
+        std::vector<std::pair<entity,entity>> collisions;
+        // accumulate pairwise collisions
         for(entity e : c.getEntities()) {
             if(c.hasComponents<position,collide,velocity,sprite<idle>>(e)) {
                 float x = c.getComponent<position>(e)->x;
@@ -182,8 +293,24 @@ namespace systems {
                     rectf& r = tms[id]->boxes.back();
                     for(entity t : c.getEntities()) {
                         if(e == t) continue;
-                        //
-                        if(c.hasComponents<position,volume>(t)) {
+                        // has an indexed collision box
+                        if(c.hasComponents<position,collide,sprite<idle>>(t)) {
+                            float x2 = c.getComponent<position>(t)->x;
+                            float y2 = c.getComponent<position>(t)->y;
+                            unsigned row2 = c.getComponent<sprite<idle>>(t)->row;
+                            unsigned col2 = c.getComponent<sprite<idle>>(t)->col;
+                            unsigned nCols2 = c.getComponent<sprite<idle>>(t)->pTS->numCols;
+                            unsigned id2 = col2 + row2*nCols2;
+                            auto tms2 = c.getComponent<sprite<idle>>(t)->pTS->tileMetas;
+                            rectf& r2 = tms2[id2]->boxes.back();
+                            if(collision(rectf(x+r.x+dx,y+r.y+dy,r.w,r.h),rectf(x2+r2.x,y2+r2.y,r2.w,r2.h))) {
+                                c.getComponent<velocity>(e)->x = 0;
+                                c.getComponent<velocity>(e)->y = 0;
+                                collisions.emplace_back(e,t);
+                            }
+                        }
+                        // has a static collision box (should be just a version of the first case)
+                        else if(c.hasComponents<position,volume>(t)) {
                             float x2 = c.getComponent<position>(t)->x;
                             float y2 = c.getComponent<position>(t)->y;
                             float w2 = c.getComponent<volume>(t)->w;
@@ -191,6 +318,7 @@ namespace systems {
                             if(collision(rectf(x+r.x+dx,y+r.y+dy,r.w,r.h),rectf(x2,y2,w2,h2))) {
                                 c.getComponent<velocity>(e)->x = 0;
                                 c.getComponent<velocity>(e)->y = 0;
+                                collisions.emplace_back(e,t);
                             }
                         }
                     }
@@ -214,9 +342,17 @@ namespace systems {
                         if(collision(rectu(x+dx,y+dy,w,h),rectu(x2,y2,w2,h2))) {
                             c.getComponent<velocity>(e)->x = 0;
                             c.getComponent<velocity>(e)->y = 0;
+                            collisions.emplace_back(e,t);
                         }
                     }
                 }
+            }
+        }
+        // handle pairwise collisions (should be moved to an appropriate system)
+        for(auto [e1, e2] : collisions) {
+            if(c.hasComponents<combat>(e1) && c.hasComponents<combat>(e2)) {
+                c.getComponent<combat>(e1)->health--;
+                c.getComponent<combat>(e2)->health--;
             }
         }
     }
@@ -252,30 +388,6 @@ namespace systems {
     }
     // UI
     void UI::update(Context& c, SDL_Renderer& r) {
-        // get viewport dimensions
-        SDL_Rect vr;
-        SDL_RenderGetViewport(&r, &vr);
-        unsigned vw = vr.w, vh = vr.h;
-        // get camera
-        float cx = 0.0f, cy = 0.0f;
-        float zoom = 1.0f;
-        for(entity e: c.getEntities()) {
-            if(c.hasComponents<camera>(e)) {
-                entity target = c.getComponent<camera>(e)->target;
-                if(c.hasComponents<position,volume>(target)) {
-                    // center of screen
-                    cx = c.getComponent<position>(target)->x + c.getComponent<volume>(target)->w/2.0f;
-                    cy = c.getComponent<position>(target)->y + c.getComponent<volume>(target)->h/2.0f;
-                    glog.get() << "[systems::Sprite]: world position of center of screen: (" << cx << "," << cy << ")\n";
-                }
-                else {
-                    glog.get() << "[systems::Sprite]: camera targeted to non-positional entity\n";
-                }
-                zoom = c.getComponent<camera>(e)->zoom;
-                break;
-            }
-        }
-
         SDL_Color fg = {125,0,0};
         for(entity e : c.getEntities()) {
             if(c.hasComponents<position,combat>(e)) {
@@ -299,8 +411,9 @@ namespace systems {
                 }
                 SDL_Rect src = {0, 0, w, h};
                 SDL_Rect dest;
-                dest.x = (x-cx)*zoom+vw/2 - dx;
-                dest.y = (y-cy)*zoom+vh/2 - dy;
+                auto [cX, cY] = cam.getCameraCoordinates(x,y);
+                dest.x = cX-dx;
+                dest.y = cY-dy;
                 dest.w = src.w; dest.h = src.h;
                 SDL_RenderCopy(&r,textTexture,&src,&dest);
             }

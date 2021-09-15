@@ -32,6 +32,10 @@ struct direction : component<direction> {
     enum class facing {left, right, up, down} dir;
     direction(facing dir) : dir(dir) {}
 };
+struct cursor : component<cursor> { 
+    float x, y;
+    cursor(float x, float y) : x(x), y(y) {}
+};
 // sprite compositional components
 struct idle : component<idle> {
     unsigned ticks;
@@ -41,6 +45,9 @@ struct walk : component<walk> {
     unsigned ticks;
     walk(unsigned startingTicks) : ticks(startingTicks) {}
 };
+// this is inappropriate, as parameterizing on component can be accomplished by
+// merely associating the same entitity *with* that component, and having a 
+// system that handles the sprite based on that
 template<typename T>
 struct sprite : component<sprite<T>> {
     // parent texture (sprite sheet)
@@ -55,6 +62,7 @@ struct sprite : component<sprite<T>> {
         const unsigned& zOrdering, const T& t) 
         : pTS(sourceTilesetMetaPtr), row(rowIndex), col(colIndex), z(zOrdering), s(t) {}
 };
+struct layer : component<layer> { };
 struct volume : component<volume> {
     float w, h;
     volume(float w, float h) : w(w), h(h) {}
@@ -62,6 +70,7 @@ struct volume : component<volume> {
 struct collide : component<collide> {
     collide() {}
 };
+// should change this to be a component of the player entity
 struct camera : component<camera> {
     entity target;
     float zoom;
@@ -71,6 +80,7 @@ struct combat : component<combat> {
     unsigned health;
     combat(unsigned health) : health(health) {}
 };
+// should have a table from enemy entity -> target entitiy
 struct enemy : component<enemy> {
     enum class state { passive, aggressive };
     state s;
