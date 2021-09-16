@@ -243,6 +243,8 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
             entity e = es.at(i).at(j);
             float x = obj.x, y = obj.y;
             float w = obj.width, h = obj.height;
+            cxt->addComponent<name>(e,obj.name);
+            glog.get() << "[loader]: adding entity w/ name = " << obj.name << "...\n";
             // camera
             if(obj.type == "camera") {
                 entity target = 0;
@@ -264,13 +266,27 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
             for(tmx::property& prop : obj.properties) {
                 if(prop.name == "input" && prop.value == "true") {
                     cxt->addComponent<input>(e,0);
+                    glog.get() << "\tadded 'input' component\n";
                 }
-                else if(prop.name == "velocity") {
+                else if(prop.name == "physics") {
+                    cxt->addComponent<force>(e,0,0);
                     cxt->addComponent<velocity>(e,0,0);
+                    cxt->addComponent<acceleration>(e,0,0);
+                    glog.get() << "\tadded 'force', 'velocity', and 'acceleration' components\n";
+                }
+                else if(prop.name == "mass") {
+                    float val = stof(prop.value);
+                    cxt->addComponent<mass>(e,val);
+                    glog.get() << "\t[loader]: added 'mass' component (" << val << ")\n";
+                }
+                else if(prop.name == "friction") {
+                    float val = stof(prop.value);
+                    cxt->addComponent<friction>(e,val);
+                    glog.get() << "\t[loader]: added 'friction' component (" << val << ")\n";
                 }
                 else if(prop.name == "sprite") {
                     std::string sheetname = prop.value;
-                    glog.get() << "[loader]: read 'sprite' property: need sheetname:'" << sheetname << "'\n";
+                    glog.get() << "\t[loader]: read 'sprite' property: need sheetname:'" << sheetname << "'\n";
                     glog.get().flush();
                     tmx::tileset ts = tmx::loadTileset(sheetname);
                     // TODO: don't load more than you need to
@@ -281,6 +297,20 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
                         spriteMetas[ts.name] = loadTileset(ts,renderer);
                     }
                     cxt->addComponent<sprite<idle>>(e,spriteMetas[ts.name],0,0,1,idle(0));
+                }
+                else if(prop.name == "shoots") {
+                    std::string sheetname = prop.value;
+                    glog.get() << "\t[loader]: read 'shoots' property: need sheetname:'" << sheetname << "'\n";
+                    glog.get().flush();
+                    tmx::tileset ts = tmx::loadTileset(sheetname);
+                    // TODO: don't load more than you need to
+                    if(tilesetMetas.count(ts.name) != 0) {
+                        spriteMetas[ts.name] = tilesetMetas[ts.name];
+                    }
+                    else if(spriteMetas.count(ts.name) == 0) {
+                        spriteMetas[ts.name] = loadTileset(ts,renderer);
+                    }
+                    cxt->addComponent<shoots>(e,12,spriteMetas[ts.name]);
                 }
                 else if(prop.name == "collide") {
                     cxt->addComponent<collide>(e);
@@ -315,7 +345,7 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
                 }
                 else if(prop.name == "cursorsprite") {
                     std::string sheetname = prop.value;
-                    glog.get() << "[loader]: read 'cursorsprite' property: need sheetname:'" << sheetname << "'\n";
+                    glog.get() << "\t[loader]: read 'cursorsprite' property: need sheetname:'" << sheetname << "'\n";
                     glog.get().flush();
                     tmx::tileset ts = tmx::loadTileset(sheetname);
                     // TODO: don't load more than you need to

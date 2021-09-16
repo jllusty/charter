@@ -14,11 +14,18 @@
 namespace systems {
     // position system
     struct Position {
-        void update(Context &c);
+        void update(Context &c, float dt);
     };
     // velocity system
     struct Velocity {
+        void update(Context &c, float dt);
+    };
+    // acceleration system
+    struct Acceleration {
         void update(Context &c);
+    };
+    struct Force {
+        void update(Context &c, float dt);
     };
     // player input system (use velocity to update)
     struct Input {
@@ -48,7 +55,7 @@ namespace systems {
     };
     // Collision
     struct Collision {
-        void update(Context& c);
+        void update(Context& c, float dt);
     };
     // Combat
     struct Combat {
@@ -61,11 +68,20 @@ namespace systems {
     struct Spawner {
         void update(Context& c);
     };
+    struct Bullet {
+
+    };
     // User Interface
     struct UI {
         TTF_Font* font;
         void update(Context& c, SDL_Renderer& r);
     };
+    // Debug
+    struct Debug {
+        bool showCollision{ false };
+        void update(Context& c);
+    };
+    extern Debug dbg;
     // Debug Graphics
     /*
     struct DebugGraphics {

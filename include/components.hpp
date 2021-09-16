@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-//using TexturePtr = std::shared_ptr<sf::Texture>;
 struct name : component<name> {
     std::string str;
     name(std::string str) : str(str) {}
@@ -19,15 +18,43 @@ struct input : component<input> {
     int ticks;
     input(int ticks) : ticks(ticks) {}
 };
+// physics components
 struct position : component<position> {
     float x, y;
     position(float x, float y) : x(x), y(y) {}
 };
 struct velocity : component<velocity> {
-    bool inMotion { false };
     float x, y;
     velocity(float x, float y) : x(x), y(y) {}
 };
+struct acceleration : component<acceleration> {
+    float x, y;
+    acceleration(float x, float y) : x(x), y(y) {}
+};
+struct friction : component<friction> {
+    float coeff;
+    friction(float coeff) : coeff(coeff) {}
+};
+struct force : component<force> {
+    float x, y;
+    force(float x, float y) : x(x), y(y) {}
+};
+struct mass : component<mass> {
+    float m;
+    mass(float m) : m(m) {}
+};
+struct shoots : component<shoots> {
+    unsigned ammo{ 0 };
+    tilesetMetaPtr pTS;
+    shoots(unsigned ammo, tilesetMetaPtr pTS) 
+        : ammo(ammo), pTS(pTS) {}
+};
+// despawning struct
+struct bullet : component<bullet> {
+    bool hit{ false };
+    bullet(bool hit) : hit(hit) {}
+};
+// entity state specific
 struct direction : component<direction> {
     enum class facing {left, right, up, down} dir;
     direction(facing dir) : dir(dir) {}

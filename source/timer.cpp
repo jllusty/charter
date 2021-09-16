@@ -1,54 +1,18 @@
 #include "timer.hpp"
 
 Timer::Timer() {
-    startTicks = 0;
-    pausedTicks = 0;
-    paused = false;
-    started = false;
+    previousTicks = 0;
+    elapsedSeconds = 0.f;
 }
 
-void Timer::start() {
-    started = true;
-    paused = false;
-    startTicks = SDL_GetTicks();
-    pausedTicks = 0;
+void Timer::tick() {
+    const Uint64 currentTicks{ SDL_GetPerformanceCounter() };
+    const Uint64 delta{ currentTicks - previousTicks};
+    previousTicks = currentTicks;
+    static const Uint64 ticksPerSecond{ SDL_GetPerformanceFrequency() };
+    elapsedSeconds = delta / static_cast<float>(ticksPerSecond);
 }
 
-void Timer::stop() {
-    started = false;
-    paused = false;
-    startTicks = 0;
-    pausedTicks = 0;
+float Timer::elapsed() {
+    return elapsedSeconds;
 }
-
-void Timer::pause() {
-    if(started && !paused) {
-        paused = true;
-        pausedTicks = SDL_GetTicks() - startTicks;
-        startTicks = 0;
-    }
-}
-
-void Timer::unpause() {
-    if(started && paused) {
-        paused = false;
-        startTicks = SDL_GetTicks() - pausedTicks;
-        pausedTicks = 0;
-    }
-}
-
-Uint32 Timer::getTicks() {
-    Uint32 time = 0;
-    if(started) {
-        if(paused) {
-            time = pausedTicks;
-        }
-        else {
-            time = SDL_GetTicks() - startTicks;
-        }
-    }
-    return time;
-}
-
-bool Timer::isStarted() {return started;}
-bool Timer::isPaused() {return paused && started;}

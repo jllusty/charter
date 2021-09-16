@@ -17,8 +17,6 @@ Logger glog("log.txt");
 // const screen settings
 const unsigned screenWidth = 1280;
 const unsigned screenHeight = 720;
-const unsigned screenFPS = 60;
-const unsigned screenTickPerFrame = 1000 / screenFPS;
 
 // handles a single event
 bool handleInput(systems::Input& iSys, SDL_Event event);
@@ -57,13 +55,18 @@ int main(int argc, char* argv[]) {
     auto cxt = loader.getTilemapContext("testmap");
 
     // Init Systems
+    // input
     systems::Input inputSystem;
+    // physics
     systems::Position positionSystem;
     systems::Velocity velocitySystem;
-    systems::Direction directionSystem;
-    systems::Sprite spriteSystem;
+    systems::Acceleration accelerationSystem;
     systems::Collision collisionSystem;
+    // entity state
+    systems::Direction directionSystem;
     systems::Combat combatSystem;
+    // rendering
+    systems::Sprite spriteSystem;
     systems::UI uiSystem;
 
     //systems::DebugGraphics dgSystem;
@@ -78,12 +81,14 @@ int main(int argc, char* argv[]) {
     // Main Loop: cap framerate to 60 FPS
     Timer fpsTimer;
     Timer capTimer;
-    int countedFrames = 0;
-    fpsTimer.start();
     bool running = true;
+    float accumulatedSeconds = 0.f;
+    const int updateFrequency{ 60 };
+    const float cycleTime{ 1.0f/updateFrequency };
     while(running) {
         // start timer to measure how long the "work" takes
-        capTimer.start();
+        capTimer.tick();
+        accumulatedSeconds += capTimer.elapsed();
 
         SDL_Event event;
         // poll until all events are handled
@@ -99,39 +104,55 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // calculate fps
-        float avgFPS = countedFrames / (fpsTimer.getTicks() / 1000.f);
-        if(avgFPS > 2000000) avgFPS = 0;
-        // report fps
-        glog.get() << "[main thread]: " << "fps = " << avgFPS << "\n";
+        if(std::isgreater(accumulatedSeconds,cycleTime))
+        {
+            accumulatedSeconds = -cycleTime;
+            // calculate fps
+            //float avgFPS = countedFrames / (fpsTimer.getTicks() / 1000.f);
+            //if(avgFPS > 2000000) avgFPS = 0;
+            // report fps
+            //glog.get() << "[main thread]: " << "fps = " << avgFPS << "\n";
 
-        // update systems
-        //  these update velocity components, which the collision system uses for resolution
-        inputSystem.update(*cxt);
-        velocitySystem.update(*cxt);
-        directionSystem.update(*cxt);
-        combatSystem.update(*cxt);
-        //  updates velocity components based on results of collision resolution
-        collisionSystem.update(*cxt);
-        //  updates position unconditionally on velocity
-        positionSystem.update(*cxt);
+            // calculate timestep for physics
+            //Uint32 currentTicks = fpsTimer.getTicks();
+            //dt = (currentTicks - lastTicks) / 1000.f;
+            //lastTicks = currentTicks;
 
-        // update camera
-        systems::cam.update(*cxt,*renderer);
+            // update systems
+            static Timer physicsTimer;
+            physicsTimer.tick();
+            float dt = physicsTimer.elapsed();
+            //  these update velocity components, which the collision system uses for resolution
+            inputSystem.update(*cxt);
+            accelerationSystem.update(*cxt);
+            velocitySystem.update(*cxt,dt);
+            directionSystem.update(*cxt);
+            combatSystem.update(*cxt);
+            //  updates velocity components based on results of collision resolution
+            collisionSystem.update(*cxt,dt);
+            //  updates position unconditionally on velocity
+            positionSystem.update(*cxt,dt);
 
-        // draw systems
-        SDL_RenderClear(renderer);
-        spriteSystem.update(*cxt, *renderer);
-        uiSystem.update(*cxt, *renderer);
-        //dgSystem.update(*cxt,*renderer);
+            // turn on debug on
+            systems::dbg.showCollision = true;
 
-        // draw game
-        SDL_RenderPresent(renderer);
-        // update counted frames
-        ++countedFrames;
-        // frame finished early? wait it out, but don't give the CPU a chance to breath
-        while(capTimer.getTicks() < screenTickPerFrame) {}
-        glog.get() << "\n";
+            // update camera
+            systems::cam.update(*cxt,*renderer);
+
+            // draw systems
+            SDL_RenderClear(renderer);
+            spriteSystem.update(*cxt, *renderer);
+            uiSystem.update(*cxt, *renderer);
+            //dgSystem.update(*cxt,*renderer);
+
+            // draw game
+            SDL_RenderPresent(renderer);
+            // update counted frames
+            //++countedFrames;
+            //glog.get() << "\n";
+            // wait until exactly 1/60 seconds has passed
+            //while(capTimer.getTicks() < screenTickPerFrame) {}
+        } 
     }
 
     // Clear Engine-Requested SDL_Texture memory

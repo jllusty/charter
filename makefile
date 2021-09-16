@@ -26,3 +26,6 @@ SRC = $(XML_SRC) source/tinytmx.cpp source/logger.cpp source/timer.cpp source/co
 # target
 embark:
 	$(CC) $(C_FLAGS) $(INC_FLAGS) $(LD_FLAGS) $(SRC) -o game $(L_FLAGS)
+
+test:
+	$(CC) $(C_FLAGS) -I./include tests/main.cpp -o test
