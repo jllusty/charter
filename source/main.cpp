@@ -1,16 +1,16 @@
-// entry code through SDL layer
-
-#include <iostream>
-#include <chrono>
+// SDL layer
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 
+// generates context using tilemap & tileset files
 #include "loader.hpp"
-
+// ECS systems, instantiated here
 #include "systems.hpp"
 
+// game timer
 #include "timer.hpp"
+// game logging stream instance (extern-ed to loader and system updates)
 #include "logger.hpp"
 Logger glog("log.txt");
 
@@ -21,7 +21,9 @@ const unsigned screenHeight = 720;
 // handles a single event
 bool handleInput(systems::Input& iSys, SDL_Event event);
 
+// ENTRY POINT
 int main(int argc, char* argv[]) {
+    // set resource directory
     const std::string resourceDirectory = "resources";
     // Load Game
     Loader loader("resources");
@@ -29,6 +31,8 @@ int main(int argc, char* argv[]) {
 
     // Load Window + Graphics
     SDL_Init(SDL_INIT_VIDEO);
+    // turn off cursor
+    // SDL_ShowCursor(SDL_DISABLE);
     // initialize SDL_ttf
     if(TTF_Init()==-1) {
         glog.get() << "TTF_Init: " << TTF_GetError() << "\n";
@@ -38,6 +42,7 @@ int main(int argc, char* argv[]) {
     if(!(IMG_Init(imgFlags) && imgFlags)) {
         glog.get() << "[main thread]: SDL_image could not initialize loading PNG: " << IMG_GetError() << "\n";
     }
+    // create SDL window & SDL renderer
     SDL_Window* window = nullptr;
     window = SDL_CreateWindow("E M B A R K",SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,
                      screenWidth,screenHeight, SDL_WINDOW_SHOWN);
@@ -49,9 +54,10 @@ int main(int argc, char* argv[]) {
         glog.get() << "SDL failed SDL_CreateRenderer()\n";
     }
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
-    // Load SDL Textures
+
+    // Game: Load tilesets into SDL Textures
     loader.populateTilemap("testmap", renderer);
-    // Instantiate Game Context
+    // Game: Instantiate Room Context for selected Tilemap
     auto cxt = loader.getTilemapContext("testmap");
 
     // Init Systems
@@ -64,22 +70,16 @@ int main(int argc, char* argv[]) {
     systems::Collision collisionSystem;
     // entity state
     systems::Direction directionSystem;
-    systems::Combat combatSystem;
-    // rendering
-    systems::Sprite spriteSystem;
-    systems::UI uiSystem;
-
-    //systems::DebugGraphics dgSystem;
+    systems::CombatAI combatSystem;
 
     // TTF tests
     TTF_Font* font = TTF_OpenFont("resources\\Azeret_Mono\\static\\AzeretMono-Black.ttf",26);
     if(font == nullptr) {
         glog.get() << "[main thread]: Could not load font. TTF_OpenFont: " << TTF_GetError() << "\n";
     }
-    uiSystem.font = font;
+    systems::ui.font = font;
 
     // Main Loop: cap framerate to 60 FPS
-    Timer fpsTimer;
     Timer capTimer;
     bool running = true;
     float accumulatedSeconds = 0.f;
@@ -104,54 +104,44 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // do not throw exception on floating-point comparison for timer
         if(std::isgreater(accumulatedSeconds,cycleTime))
         {
-            accumulatedSeconds = -cycleTime;
-            // calculate fps
-            //float avgFPS = countedFrames / (fpsTimer.getTicks() / 1000.f);
-            //if(avgFPS > 2000000) avgFPS = 0;
-            // report fps
-            //glog.get() << "[main thread]: " << "fps = " << avgFPS << "\n";
-
-            // calculate timestep for physics
-            //Uint32 currentTicks = fpsTimer.getTicks();
-            //dt = (currentTicks - lastTicks) / 1000.f;
-            //lastTicks = currentTicks;
+            // reset accumulator
+            accumulatedSeconds = 0.f;
 
             // update systems
             static Timer physicsTimer;
             physicsTimer.tick();
             float dt = physicsTimer.elapsed();
+            glog.get() << "[main thread]: dt = " << dt << "\n";
             //  these update velocity components, which the collision system uses for resolution
             inputSystem.update(*cxt);
             accelerationSystem.update(*cxt);
             velocitySystem.update(*cxt,dt);
+            //  TODO(jllusty): when entities have velocities set, be careful about the order of operations
+            //                 so that they are not decellarated to a velocity below their maximal velocity
             directionSystem.update(*cxt);
+            systems::bul.update(*cxt);
             combatSystem.update(*cxt);
             //  updates velocity components based on results of collision resolution
-            collisionSystem.update(*cxt,dt);
+            collisionSystem.update(*cxt);
+            collisionSystem.resolve(*cxt,dt);
             //  updates position unconditionally on velocity
             positionSystem.update(*cxt,dt);
 
-            // turn on debug on
-            systems::dbg.showCollision = true;
-
             // update camera
             systems::cam.update(*cxt,*renderer);
-
             // draw systems
             SDL_RenderClear(renderer);
-            spriteSystem.update(*cxt, *renderer);
-            uiSystem.update(*cxt, *renderer);
-            //dgSystem.update(*cxt,*renderer);
+            systems::spr.update(*cxt);
+            systems::ui.update(*cxt, *renderer);
+            systems::graphics.update(*renderer);
 
             // draw game
             SDL_RenderPresent(renderer);
-            // update counted frames
-            //++countedFrames;
-            //glog.get() << "\n";
-            // wait until exactly 1/60 seconds has passed
-            //while(capTimer.getTicks() < screenTickPerFrame) {}
+            // newline in log
+            glog.get() << "\n";
         } 
     }
 
@@ -213,6 +203,9 @@ bool handleInput(systems::Input& iSys, SDL_Event event) {
         case SDLK_DOWN:
             iSys.downArr = true;
             break;
+        case SDLK_BACKQUOTE:
+            iSys.debugToggle = true;
+            break;
         case SDLK_ESCAPE:
             running = false;
             break;
@@ -237,6 +230,9 @@ bool handleInput(systems::Input& iSys, SDL_Event event) {
             break;
         case SDLK_DOWN:
             iSys.downArr = false;
+            break;
+        case SDLK_BACKQUOTE:
+            iSys.debugToggle = false;
             break;
         }
     }

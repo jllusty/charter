@@ -7,6 +7,8 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
+#include <map>
+#include <list>
 #include <vector>
 #include <utility>
 #include <deque>
@@ -29,6 +31,7 @@ namespace systems {
     };
     // player input system (use velocity to update)
     struct Input {
+        bool debugToggle = false;
         bool Wd = false, Ad = false, Sd = false, Dd = false;
         float mouseX{ 0.0f }, mouseY { 0.0f };
         bool mouseLeftd = false, mouseRightd = false;
@@ -39,6 +42,7 @@ namespace systems {
     struct Direction {
         void update(Context &c);
     };
+    // rendering systems
     struct Camera {
         unsigned vw{0};
         unsigned vh{0};
@@ -50,32 +54,42 @@ namespace systems {
         std::pair<float,float> getCameraCoordinates(float x, float y);
     };
     extern Camera cam;
+    // organize entities by depth & layer, request draws
     struct Sprite {
-        void update(Context &c, SDL_Renderer& r);
+        void update(Context &c);
     };
-    // Collision
-    struct Collision {
-        void update(Context& c, float dt);
-    };
-    // Combat
-    struct Combat {
-        void update(Context& c);
-    };
-    // spawner / despawner
-    // track the lifetime and/or position of entities in deciding whether or
-    // not to remove them from the given context, needs some better components
-    // to accomplish this
-    struct Spawner {
-        void update(Context& c);
-    };
-    struct Bullet {
-
-    };
-    // User Interface
+    extern Sprite spr;
+    // request UI draws
     struct UI {
         TTF_Font* font;
         void update(Context& c, SDL_Renderer& r);
     };
+    extern UI ui;
+    // draws the current rendering queue
+    struct Graphics {
+        std::deque<LRenderable> renderQueue;
+        void update(SDL_Renderer& r);
+    };
+    extern Graphics graphics;
+    struct Collision {
+        // Update collision components, if applicable
+        void update(Context& c);
+        // Collision Resolution
+        void resolve(Context& c, float dt);
+    };
+    // CombatAI
+    //     needs to register interest in collision events
+    struct CombatAI {
+        std::map<entity,entity> targets;
+        void update(Context& c);
+    };
+    // bullet spawner
+    struct Bullet {
+        std::deque<std::pair<entity,vec2f>> shotsToFire;
+        std::list<entity> bullets;
+        void update(Context& c);
+    };
+    extern Bullet bul;
     // Debug
     struct Debug {
         bool showCollision{ false };

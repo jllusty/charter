@@ -207,7 +207,7 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
                         float x = j*tm.tilewidth + box.x;
                         float y = i*tm.tileheight + box.y;
                         cxt->addComponent<position>(e,x,y);
-                        cxt->addComponent<volume>(e,box.w,box.h);
+                        cxt->addComponent<volume>(e,box);
                         glog.get() << "added a environment collision at (" << x << "," << y << ")\n";
                         glog.get().flush();
                     }
@@ -261,7 +261,8 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
                 continue;
             }
             cxt->addComponent<position>(e,x,y);
-            cxt->addComponent<volume>(e,w,h);
+            rectf vbox = rectf(0.f,0.f,w,h);
+            cxt->addComponent<volume>(e,vbox);
             // not camera
             for(tmx::property& prop : obj.properties) {
                 if(prop.name == "input" && prop.value == "true") {
@@ -296,7 +297,7 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
                     else if(spriteMetas.count(ts.name) == 0) {
                         spriteMetas[ts.name] = loadTileset(ts,renderer);
                     }
-                    cxt->addComponent<sprite<idle>>(e,spriteMetas[ts.name],0,0,1,idle(0));
+                    cxt->addComponent<sprite>(e,spriteMetas[ts.name],0,0,1);
                 }
                 else if(prop.name == "shoots") {
                     std::string sheetname = prop.value;
@@ -313,7 +314,7 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
                     cxt->addComponent<shoots>(e,12,spriteMetas[ts.name]);
                 }
                 else if(prop.name == "collide") {
-                    cxt->addComponent<collide>(e);
+                    cxt->addComponent<collide>(e,vbox);
                 }
                 else if(prop.name == "direction") {
                     direction::facing dir;
@@ -355,7 +356,7 @@ void Loader::populateTilemap(const std::string& mapname, SDL_Renderer* renderer)
                     else if(spriteMetas.count(ts.name) == 0) {
                         spriteMetas[ts.name] = loadTileset(ts,renderer);
                     }
-                    cxt->addComponent<sprite<cursor>>(e,spriteMetas[ts.name],0,0,0,cursor(0.0f,0.0f));
+                    //cxt->addComponent<sprite>(e,spriteMetas[ts.name],0,0,0,cursor(0.0f,0.0f));
                 }
             }
         }
@@ -391,7 +392,7 @@ std::shared_ptr<Context> Loader::getTilemapContext(const std::string& mapname)
     pTS->numRows = 1;
     pTS->tilewidth = w;
     pTS->tileheight = h;
-    cxt->addComponent<sprite<idle>>(e,pTS,0,0,0,idle(0));
+    cxt->addComponent<sprite>(e,pTS,0,0,0);
     glog.get() << "[loader]: added background entity w/ size " << w << " x " << h << "\n";
     glog.get().flush();
     return cxt;

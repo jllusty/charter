@@ -51,51 +51,42 @@ struct shoots : component<shoots> {
 };
 // despawning struct
 struct bullet : component<bullet> {
+    entity shooter{ 0 };
     bool hit{ false };
-    bullet(bool hit) : hit(hit) {}
+    bullet(entity shooter, bool hit) : shooter(shooter), hit(hit) {}
 };
 // entity state specific
 struct direction : component<direction> {
     enum class facing {left, right, up, down} dir;
     direction(facing dir) : dir(dir) {}
 };
+// ui component
 struct cursor : component<cursor> { 
     float x, y;
     cursor(float x, float y) : x(x), y(y) {}
 };
-// sprite compositional components
-struct idle : component<idle> {
-    unsigned ticks;
-    idle(unsigned startingTicks) : ticks(startingTicks) {}
-};
-struct walk : component<walk> {
-    unsigned ticks;
-    walk(unsigned startingTicks) : ticks(startingTicks) {}
-};
-// this is inappropriate, as parameterizing on component can be accomplished by
-// merely associating the same entitity *with* that component, and having a 
-// system that handles the sprite based on that
-template<typename T>
-struct sprite : component<sprite<T>> {
+// renderable
+struct sprite : component<sprite> {
     // parent texture (sprite sheet)
     tilesetMetaPtr pTS;
     unsigned row;
     unsigned col;
-    // z ordering
+    // z ordering, determines what sprites are draw first
     unsigned z;
-    // switching state - another component
-    T s;
     sprite(tilesetMetaPtr sourceTilesetMetaPtr, unsigned rowIndex, unsigned colIndex, 
-        const unsigned& zOrdering, const T& t) 
-        : pTS(sourceTilesetMetaPtr), row(rowIndex), col(colIndex), z(zOrdering), s(t) {}
+        const unsigned& zOrdering) 
+        : pTS(sourceTilesetMetaPtr), row(rowIndex), col(colIndex), z(zOrdering) {}
 };
 struct layer : component<layer> { };
+// static collision box
 struct volume : component<volume> {
-    float w, h;
-    volume(float w, float h) : w(w), h(h) {}
+    rectf box;
+    volume(rectf box) : box(box) {}
 };
+// dynamic (indexed) collision box
 struct collide : component<collide> {
-    collide() {}
+    rectf box;
+    collide(rectf box) : box(box) {}
 };
 // should change this to be a component of the player entity
 struct camera : component<camera> {

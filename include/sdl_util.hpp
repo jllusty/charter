@@ -11,6 +11,14 @@
 
 #include <SDL.h>
 
+// for rendering
+struct LRenderable {
+    SDL_Texture* texPtr;
+    SDL_Rect src;
+    SDL_Rect dst;
+    LRenderable(SDL_Texture* texPtr, SDL_Rect src, SDL_Rect dst)
+        : texPtr(texPtr), src(src), dst(dst) {}
+};
 struct tileMeta {
     unsigned id;
     std::vector<rectf> boxes;
@@ -20,7 +28,7 @@ using tileMetaPtr = std::shared_ptr<tileMeta>;
 
 // set up for easy query of subrect & collision information
 struct tilesetMeta {
-    // collision state
+    // collision state (WHY is this here?)
     std::unordered_map<unsigned,tileMetaPtr> tileMetas;
     // renderable state
     // parent texture of overall tileset
